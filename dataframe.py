@@ -16,7 +16,7 @@ import numpy as np # using np.nan to initialise dataframe
 import pandas as pd
 
 # as this class does not run in the main thread, __ini__ definition of logging does not work
-logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 class DataFrame():
 

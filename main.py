@@ -10,6 +10,8 @@ Dependencies:
   PyDispatcher, pyserial, pyqtgraph, numpy, scikit, PySide6, pyopengl, pyzmq
 @author: matthew oppenheim
 last date of update: 2025_04_29
+
+TO DO: Add data save and replay
 '''
 
 #import accelerometer_data_structure as ads
@@ -17,6 +19,7 @@ last date of update: 2025_04_29
 import accelerometer_data_structure as ads
 from dataframe import DataFrame
 import dispatcher_signals as ds
+from files import Files # save data to file
 from imu_calcs import IMU_calcs
 import logging
 import math # math.sqrt math.isnan used
@@ -26,6 +29,7 @@ import PySide6
 from pydispatch import dispatcher
 from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
 import pyqtgraph as pg
+import queue # for inter-thread communiction
 from replay_data import ReplayData
 # from gesture import Gesture
 from serial_connection import Serial_Connect
@@ -69,6 +73,9 @@ class Handshake():
         serial_connection_thread.start()
         self.last_graph_update = time.time() # used to measure the graph update frequency, independent of sensor data frequency
         self.last_textedit_update = time.time() # used to limit update rate of textedit box
+        self.queue_out = queue.Queue(maxsize=1) # for inter-thread communication
+        self.file_thread = threading.Thread(target=Files, args=(self.queue_out,)) # starts in a thread
+        self.file_thread.start() # start the thread
         self.time_list = [0] * self.SENSOR_TIME_SAMPLES # empty list of time stamps to calculate graph update rate
         # handles zmq communications with the gesture definition gui
         # self.zmq = ZmqPair()
@@ -77,11 +84,13 @@ class Handshake():
         # self.gesture = Shake_Recognition()
         # IMU_calcs is used to calculate pitch, roll, yaw, abs
         self.imu = IMU_calcs()
-        self.play = True # should the graph scroll, for play/pause button[]
+        self.play = True # should the graph scroll, for play/pause button
+        self.record = False # should the data be saved to file
         # ----- Set up the graphs
         self.create_graphs()
-
-        logging.debug('created Graph_Accelerometer in main')
+        self.create_buttons()
+        self.create_textbox()
+        logging.debug('\n*** display setup\n')
 
 
     def create_graphs(self):
@@ -96,7 +105,7 @@ class Handshake():
         self.win.nextRow()
         self.p_zacc = self.win.addPlot(title='z_acc')
         self.win.nextRow()
-        '''
+        ''' pitch, roll, yaw not in use
         self.p_pitch = self.win.addPlot(title='pitch')
         self.win.nextRow()
         self.p_roll = self.win.addPlot(title='roll')
@@ -109,8 +118,8 @@ class Handshake():
         self.p_xacc.setYRange(-self.MAX_ACC,self.MAX_ACC)
         self.p_yacc.setYRange(-self.MAX_ACC,self.MAX_ACC)
         self.p_zacc.setYRange(-self.MAX_ACC,self.MAX_ACC)
-        '''
-        # orientation calculated in imu_calcs.py
+        ''' pitch, roll, yaw not in use
+        # pitch, roll, yaw calculated in imu_calcs.py
         self.p_pitch.setYRange(-self.MAX_PITCH,self.MAX_PITCH)
         self.p_roll.setYRange(-self.MAX_ROLL,self.MAX_ROLL)
         self.p_yaw.setYRange(-self.MAX_YAW,self.MAX_YAW)
@@ -120,20 +129,37 @@ class Handshake():
         self.curve_xacc = self.p_xacc.plot()
         self.curve_yacc = self.p_yacc.plot()
         self.curve_zacc = self.p_zacc.plot()
-        '''
+        ''' pitch, roll, yaw not in use
         self.curve_pitch = self.p_pitch.plot()
         self.curve_roll = self.p_roll.plot()
         self.curve_yaw = self.p_yaw.plot()
         '''
         self.curve_abs = self.p_abs.plot()
-
-        # create play/pause button 
+    
+    def create_buttons(self):
+        ''' Add control buttons to self.win. '''
+        # create play/pause button to play or pause the sensor data display
+        # data continues being read, only the display is frozen
         pause_button_proxy = QtWidgets.QGraphicsProxyWidget()
         self.pause_button = QtWidgets.QPushButton('play/pause')
         self.pause_button.clicked.connect(self.pause_button_clicked)
         pause_button_proxy.setWidget(self.pause_button)
+        self.pause_button_update_appearance()
         self.win.nextRow()
         self.win.addItem(pause_button_proxy)
+        # create save button to save data to file
+        save_button_proxy = QtWidgets.QGraphicsProxyWidget()
+        self.save_button = QtWidgets.QPushButton('save/don\'t save')
+        self.save_button.clicked.connect(self.save_button_clicked)
+        save_button_proxy.setWidget(self.save_button)
+        self.save_button_update_appearance()
+        self.win.nextRow()
+        self.win.addItem(save_button_proxy)
+    
+
+    def create_textbox(self):    
+        ''' Add a textbox to self.win. '''
+        # text box 
         self.win.nextRow()
         self.textedit = QtWidgets.QTextEdit()
         self.textedit.setReadOnly(True)
@@ -141,14 +167,6 @@ class Handshake():
         textedit_proxy.setWidget(self.textedit)
         self.win.addItem(textedit_proxy)
 
-        # text box 
-        logging.debug('\n*** create_graphs completed\n')
-
-        '''
-        # TO DO: see which of these legacy graphs should be revisited
-        self.save_data = gui.gui_save_data
-'''
-    
 
     # must use keyword 'message' in dispatcher setup
     def dispatcher_receive_data(self, message):
@@ -169,7 +187,10 @@ class Handshake():
             # write graph update rate to self.textedit
             graph_update_frequency = self.graph_update_rate()
             sensor_update_frequency = self.sensor_update_rate()
-            self.log_textedit(f'graph fy: {graph_update_frequency:5.2f} sensor fy:{sensor_update_frequency:5.2f}')
+            try:
+                self.log_textedit(f'graph fy: {graph_update_frequency:5.2f} sensor fy:{sensor_update_frequency:5.2f}')
+            except TypeError as e: # no sensor data causes a typerror
+                pass
             self.last_textedit_update = now_time
 
     
@@ -180,7 +201,10 @@ class Handshake():
         self.time_list = self.time_list[1:]
         cleaned_time_list = [x for x in self.time_list if x != 0 ] # remove 0s from time_list
         if len(cleaned_time_list)>1:
-            update_frequency = (len(cleaned_time_list)-1)/(cleaned_time_list[-1] - cleaned_time_list[0])
+            try:
+                update_frequency = (len(cleaned_time_list)-1)/(cleaned_time_list[-1] - cleaned_time_list[0])
+            except ZeroDivisionError as e:
+                return None
         return update_frequency
 
 
@@ -189,7 +213,7 @@ class Handshake():
         x_acc = self.df.loc[0,'x_acc']
         y_acc = self.df.loc[0,'y_acc'] 
         z_acc = self.df.loc[0,'z_acc']
-        '''
+        ''' pitch, roll, yaw not in use
         pitch = self.df.loc[0,'pitch']
         roll = self.df.loc[0,'roll'] 
         yaw = self.df.loc[0,'yaw']
@@ -209,25 +233,55 @@ class Handshake():
     
     
     def pause_button_clicked(self):
-        ''' Toggle play/pause button and self.play '''
+        ''' Toggle play/pause button and self.play. '''
         self.play = not(self.play)
-        if not self.play:
+        self.pause_button_update_appearance()
+        logging.debug(f'play-pause button: {self.play}')
+
+
+    def pause_button_update_appearance(self):
+        ''' Set the pause button appearance. '''
+        if not self.play:   
             self.pause_button.setText('paused')
             self.pause_button.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         else:
             self.pause_button.setText('playing')
             self.pause_button.setStyleSheet('QPushButton {background-color: #A3C1DA; color: green;}')
-        logging.info('play-pause button toggled')
 
-   
+
+    def save_button_clicked(self):
+        ''' Toogle save button and self.save. '''
+        self.record = not(self.record) # toggle recording on or off
+        self.queue_out.put(self.record) # send self.record to thread running file handler
+        self.save_button_update_appearance()
+        logging.debug(f'record button: {self.record}')
+        self.log_textedit(f'recording to file: {self.record}')
+
+    
+    def save_button_update_appearance(self):
+        ''' Set the save button appearance. '''
+        if not self.record:
+            self.save_button.setText('not saving data')
+            self.save_button.setStyleSheet('QPushButton {background-color: #A3C1DA; color: green;}')
+        else:
+            self.save_button.setText('recording data to file')
+            self.save_button.setStyleSheet('QPushButton {background-color: #A3C1DA; color: blue;}')
+    
+
     def sensor_update_rate(self):
         ''' Calculate the sensor update frequency. '''
         # find first and last none NaN indices
         update_frequency = 0
-        millis_list = self.df['millis'].tolist()
+        try:
+            millis_list = self.df['millis'].tolist()
+        except TypeError as e:  # no data causes a Typerror
+            return
         cleaned_millis_list = [x for x in millis_list if not math.isnan(x)]
         if len(cleaned_millis_list)>1:
-            update_frequency = 1000*(len(cleaned_millis_list)-1)/(cleaned_millis_list[0] - cleaned_millis_list[-1])
+            try:
+                update_frequency = 1000*(len(cleaned_millis_list)-1)/(cleaned_millis_list[0] - cleaned_millis_list[-1])
+            except ZeroDivisionError as e:
+                return None
         return update_frequency
 
 
@@ -250,7 +304,7 @@ class Handshake():
             x_acc = self.df['x_acc'].to_numpy()
             y_acc = self.df['y_acc'].to_numpy()
             z_acc = self.df['z_acc'].to_numpy()
-            '''
+            ''' pitch, roll, yaw not in use
             pitch = self.df['pitch'].to_numpy()
             roll = self.df['roll'].to_numpy()
             yaw = self.df['yaw'].to_numpy()
@@ -259,7 +313,7 @@ class Handshake():
             self.curve_xacc.setData(x_acc)
             self.curve_yacc.setData(y_acc)
             self.curve_zacc.setData(z_acc)
-            '''
+            ''' pitch, roll, yaw not in use
             self.curve_pitch.setData(pitch)
             self.curve_yaw.setData(yaw)
             self.curve_roll.setData(roll)
