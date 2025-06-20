@@ -1,8 +1,9 @@
 '''
-Connect with the T-Watch using a USB cable. 
+Connect with the T-Watch using a USB cable.
 This creates a serial port: /dev/ACM* (linux) or /dev/ttyUSB* (windows)
 Unpack accelerometer data sent from T_Watch S3 running handshake firmware
-make the data available using dispatcher
+The unpacked data is sent to a parse.
+The parser published the parsed data using pydispatcher.
 @author: matthew oppenheim
 handshake project
 Last update: 2025_04_03
@@ -15,7 +16,6 @@ import math
 import os
 import pandas as pd
 import parse_accelerometer_data
-from pydispatch import dispatcher
 from struct import *
 import struct
 import serial
@@ -27,7 +27,7 @@ import utilities
 class Serial_Connect():
     SLEEP_TIME = 0.02 # time to sleep inbetween getting data
     BAUD = 115200
-    
+
     def __init__(self, delta=100000, serial_port=None, baud=BAUD):
         if not serial_port:
             serial_port = self.find_serial_port()
@@ -40,9 +40,9 @@ class Serial_Connect():
         try:
             serial_connection = self.serial_connect(serial_port, baud)
         except AttributeError as e:
-            utilities.exit_code('no serial connection found, error code: \n{}'.format(e))  
+            utilities.exit_code('no serial connection found, error code: \n{}'.format(e))
         self.get_bytes(serial_connection)
-        
+
 
     def check_counter(self, counter):
         ''' check the counter has incremented correctly '''
@@ -100,7 +100,7 @@ class Serial_Connect():
             return None
         logging.debug('Serial port {} set up with baud {}'.format(serial_port, baud))
         return serial_connection
-    
+
 
     def serial_write(self, message, serial_connection):
         ''' write data over serial port '''
@@ -110,4 +110,4 @@ class Serial_Connect():
 
 if __name__ == '__main__':
     t_watch = Serial_Connect()
-    
+

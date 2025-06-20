@@ -4,7 +4,7 @@ Parse accelerometer data from t_watch.
 Part of the handshake project: mattoppenheim.com/handshake.
 Sensor data example:
 
-[DEBUG] accelerometer.cpp L.39 log_acc : ST m:  10041 c:  57 x:  228 y:  270 z:  -369 EN 
+[DEBUG] accelerometer.cpp L.39 log_acc : ST m:  10041 c:  57 x:  228 y:  270 z:  -369 EN
 
 Parses data into a named tuple 'acc_data_structure'.
 Details are in accelerometer_data_structure.py.
@@ -53,7 +53,7 @@ class Parse_accelerometer_data():
         self.acc_scan = ads.acc_data_structure
         # ---- identifiers to mark start and end of sensor data reading
         # accelerometer data headers
-        self.num_data_fields = len(ads.acc_data_headers) 
+        self.num_data_fields = len(ads.acc_data_headers)
 
 
     def check_counter(self, counter):
@@ -78,13 +78,13 @@ class Parse_accelerometer_data():
             if check_string in data:
                 return True
         return False
-        
+
 
     def dispatcher_send_data(self, data):
         ''' Publish data '''
         dispatcher.send(signal=ds.PARSER_SIGNAL, sender=ds.PARSER_SENDER, message=data)
-        
-    
+
+
     def extract_single_scan(self, multi_scans, START_MARKER, END_MARKER):
         ''' Return a single scan and the multi_scans-single scan '''
         # index of where the data starts after START_MARKER
@@ -99,7 +99,7 @@ class Parse_accelerometer_data():
 
 
     def parse_new_data(self, new_data, START_MARKER=START_MARKER, END_MARKER=END_MARKER):
-        ''' Parse all of the received data which may contain multiple scans or fragments. 
+        ''' Parse all of the received data which may contain multiple scans or fragments.
         Send complete scans as acc_data_structure's to the dispatcher. '''
         remaining_data = None # to store data after a single_scan is removed from it
         # new_data = new_data.decode()
@@ -149,9 +149,6 @@ class Parse_accelerometer_data():
         # create an accelerometer data structure
         # publish scan_numpy_row using dispatcher
         return acc_data_structure
-    
-
-    
 
 if __name__ == '__main__':
     parse = Parse_accelerometer_data()
