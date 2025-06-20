@@ -16,14 +16,17 @@ import numpy as np # using np.nan to initialise dataframe
 import pandas as pd
 
 # as this class does not run in the main thread, __ini__ definition of logging does not work
-logging.basicConfig(level=logging.INFO, format='%(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+
+# length in samples of rolling window used to process dataframe
+ROLLING_WINDOW_LENGTH = 16
 
 class DataFrame():
 
   # MAX_DATAFRAME_ROWS = 300 # data_array size
   # *** FOR TESTING
   MAX_DATAFRAME_ROWS = 200 # data_array size
-  PROCESSING_HEADERS = ['abs_acc', 'pitch', 'roll', 'yaw']
+  PROCESSING_HEADERS = ['acc_abs', 'pitch', 'roll', 'yaw', 'y_rolling_mean', 'y_exceeded_mean']
 
   def __init__(self):
     # create an empty array for storing data
@@ -33,15 +36,22 @@ class DataFrame():
     logging.debug(f'self.df:\n{self.df}')
 
 
+  def add_means(self, df):
+    ''' Update dataframe rolling means and differences columns. '''
+    df['y_rolling_mean'] = df.rolling(ROLLING_WINDOW_LENGTH)['acc_y'].mean().astype(float)
+    df['y_exceeded_mean'] = 2*np.abs(df['acc_y'] - df['y_rolling_mean']).astype(float)
+    return df
+
+
   def create_acc_scan_df(self, acc_data):
     ''' Create a pandas dataframe row representing accelerometer sensor data. '''
     # acc_data_structure is a named tuple described in accelerometer_data_structure.py
     millis = acc_data.millis
     counter = acc_data.counter
-    x_acc = acc_data.x_acc
-    y_acc = acc_data.y_acc
-    z_acc = acc_data.z_acc
-    scan_data = [millis, counter, x_acc, y_acc, z_acc] # ads.acc_data_structure
+    acc_x = acc_data.acc_x
+    acc_y = acc_data.acc_y
+    acc_z = acc_data.acc_z
+    scan_data = [millis, counter, acc_x, acc_y, acc_z] # ads.acc_data_structure
     df_single_scan = pd.DataFrame([scan_data], columns=ads.acc_data_headers, dtype=float)
     # need to add extra columns and intialise to 0
     df_single_scan[self.PROCESSING_HEADERS] = 0
@@ -68,6 +78,7 @@ class DataFrame():
     # first row is now all NaN's. Replace this with df_to_add_as_list
     self.df.loc[0,:] = df_to_add_as_list # row 0, all columns = df_to_add_as_list
     #logging.debug(f'\nself.df.head():\n{self.df.head()}')
+    self.df = self.add_means(self.df)
     return self.df
     
 

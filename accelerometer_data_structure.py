@@ -20,7 +20,7 @@ PACKER = '2shhfff2s'
 ZMQ_PORT = '5556'
 
 
-acc_data_structure = collections.namedtuple('acc_scan', 'millis, counter, x_acc, y_acc, z_acc')
-acc_data_headers = ['millis', 'counter', 'x_acc', 'y_acc', 'z_acc']
+acc_data_structure = collections.namedtuple('acc_scan', 'millis, counter, acc_x, acc_y, acc_z')
+acc_data_headers = ['millis', 'counter', 'acc_x', 'acc_y', 'acc_z']
 
 

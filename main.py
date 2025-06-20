@@ -80,7 +80,7 @@ class Handshake():
         # handles zmq communications with the gesture definition gui
         # self.zmq = ZmqPair()
         # ---- gesture recognition - removed for testing ----
-        # gesture_coords saves the coordinates where a gesture is matched in a frame of abs_acc data
+        # gesture_coords saves the coordinates where a gesture is matched in a frame of acc_abs data
         # self.gesture = Shake_Recognition()
         # IMU_calcs is used to calculate pitch, roll, yaw, abs
         self.imu = IMU_calcs()
@@ -95,15 +95,19 @@ class Handshake():
 
     def create_graphs(self):
         ''' Create the graphs. '''
-        self.win = pg.GraphicsLayoutWidget(show=True, title='')
+        pg.setConfigOption('background', 'w')
+        acc_pen = pg.mkPen(color='blue', width=3)
+        focus_pen = pg.mkPen(color='orange', width=3)
+        pen = pg.mkPen(color='black', width=3)
+        self.win = pg.GraphicsLayoutWidget(show=True, title='T-Watch accelerometer data')
         self.win.setWindowTitle('T-Watch accelerometer data')
         self.win.resize(self.WIN_X,self.WIN_Y)
         pg.setConfigOptions(antialias=True)
-        self.p_xacc = self.win.addPlot(title='x_acc')
+        self.p_xacc = self.win.addPlot(title='acc_x')
         self.win.nextRow()
-        self.p_yacc = self.win.addPlot(title='y_acc')
+        self.p_yacc = self.win.addPlot(title='acc_y')
         self.win.nextRow()
-        self.p_zacc = self.win.addPlot(title='z_acc')
+        self.p_zacc = self.win.addPlot(title='acc_z')
         self.win.nextRow()
         ''' pitch, roll, yaw not in use
         self.p_pitch = self.win.addPlot(title='pitch')
@@ -113,7 +117,11 @@ class Handshake():
         self.p_yaw = self.win.addPlot(title='yaw')
         self.win.nextRow()
         '''
-        self.p_abs = self.win.addPlot(title='abs')
+        # data created by processing accelerometer data
+        self.p_abs = self.win.addPlot(title='abs') # absolute value of all 3 axis
+        self.win.nextRow()
+        # how much current value exceeds mean in a window preceding the current value
+        self.p_y_exceeded_mean = self.win.addPlot(title='y_exceeded_mean_abs')
         # accelerometer axis graphs
         self.p_xacc.setYRange(-self.MAX_ACC,self.MAX_ACC)
         self.p_yacc.setYRange(-self.MAX_ACC,self.MAX_ACC)
@@ -125,16 +133,19 @@ class Handshake():
         self.p_yaw.setYRange(-self.MAX_YAW,self.MAX_YAW)
         '''
         self.p_abs.setYRange(self.MIN_ABS,self.MAX_ABS)
+        self.p_y_exceeded_mean.setYRange(0,self.MAX_ABS)
         # assign graph line names
-        self.curve_xacc = self.p_xacc.plot()
-        self.curve_yacc = self.p_yacc.plot()
-        self.curve_zacc = self.p_zacc.plot()
+        self.curve_xacc = self.p_xacc.plot(pen=acc_pen)
+        self.curve_yacc = self.p_yacc.plot(pen=acc_pen)
+        self.curve_zacc = self.p_zacc.plot(pen=acc_pen)
         ''' pitch, roll, yaw not in use
-        self.curve_pitch = self.p_pitch.plot()
-        self.curve_roll = self.p_roll.plot()
-        self.curve_yaw = self.p_yaw.plot()
+        self.curve_pitch = self.p_pitch.plot(pen=pen)
+        self.curve_roll = self.p_roll.plot(pen=pen)
+        self.curve_yaw = self.p_yaw.plot(pen=pen)
         '''
-        self.curve_abs = self.p_abs.plot()
+        self.curve_abs = self.p_abs.plot(pen=pen)
+        self.curve_y_exceeded_mean = self.p_y_exceeded_mean.plot(pen=focus_pen)
+
     
     def create_buttons(self):
         ''' Add control buttons to self.win. '''
@@ -210,19 +221,21 @@ class Handshake():
 
     def log_df(self):
         ''' Log df values for row 0 '''
-        x_acc = self.df.loc[0,'x_acc']
-        y_acc = self.df.loc[0,'y_acc'] 
-        z_acc = self.df.loc[0,'z_acc']
+        acc_x = self.df.loc[0,'acc_x']
+        acc_y = self.df.loc[0,'acc_y'] 
+        acc_z = self.df.loc[0,'acc_z']
         ''' pitch, roll, yaw not in use
         pitch = self.df.loc[0,'pitch']
         roll = self.df.loc[0,'roll'] 
         yaw = self.df.loc[0,'yaw']
         '''
-        abs_acc = self.df.loc[0,'abs_acc']
+        acc_abs = self.df.loc[0,'acc_abs']
         millis = self.df.loc[0,'millis']
         counter = self.df.loc[0,'counter']
-        #logging.debug(f'x_acc:{x_acc:7.2f} y_acc:{y_acc:7.2f} z_acc:{z_acc:7.2f} pitch:{pitch:7.2f} roll:{roll:7.2f} yaw:{yaw:7.2f} abs:{abs_acc:7.2f}, millis:{millis:12.0f}, counter:{counter:8.0f}')
-        logging.debug(f'x_acc:{x_acc:7.2f} y_acc:{y_acc:7.2f} z_acc:{z_acc:7.2f} abs:{abs_acc:7.2f}, millis:{millis:12.0f}, counter:{counter:8.0f}')
+        y_exceeded_mean = self.df.loc[17, 'y_exceeded_mean']
+        #logging.debug(f'acc_x:{acc_x:7.2f} acc_y:{acc_y:7.2f} acc_z:{acc_z:7.2f} pitch:{pitch:7.2f} roll:{roll:7.2f} yaw:{yaw:7.2f} abs:{acc_abs:7.2f}, millis:{millis:12.0f}, counter:{counter:8.0f}')
+        # logging.debug(f'acc_x:{acc_x:7.2f} acc_y:{acc_y:7.2f} acc_z:{acc_z:7.2f} abs:{acc_abs:7.2f}, millis:{millis:12.0f}, counter:{counter:8.0f}')
+        logging.debug(f'acc_x:{acc_x:7.2f} acc_y:{acc_y:7.2f} acc_z:{acc_z:7.2f} abs:{acc_abs:7.2f}, y_exceeded_main:{y_exceeded_mean:7.2f}')
 
     
     def log_textedit(self, text):
@@ -301,24 +314,26 @@ class Handshake():
         if not self.play:
             return
         try:
-            x_acc = self.df['x_acc'].to_numpy()
-            y_acc = self.df['y_acc'].to_numpy()
-            z_acc = self.df['z_acc'].to_numpy()
+            acc_x = self.df['acc_x'].to_numpy()
+            acc_y = self.df['acc_y'].to_numpy()
+            acc_z = self.df['acc_z'].to_numpy()
             ''' pitch, roll, yaw not in use
             pitch = self.df['pitch'].to_numpy()
             roll = self.df['roll'].to_numpy()
             yaw = self.df['yaw'].to_numpy()
             '''
-            abs = self.df['abs_acc'].to_numpy()
-            self.curve_xacc.setData(x_acc)
-            self.curve_yacc.setData(y_acc)
-            self.curve_zacc.setData(z_acc)
+            abs = self.df['acc_abs'].to_numpy()
+            y_exceeded_mean = self.df['y_exceeded_mean'].to_numpy()
+            self.curve_xacc.setData(acc_x)
+            self.curve_yacc.setData(acc_y)
+            self.curve_zacc.setData(acc_z)
             ''' pitch, roll, yaw not in use
             self.curve_pitch.setData(pitch)
             self.curve_yaw.setData(yaw)
             self.curve_roll.setData(roll)
             '''
             self.curve_abs.setData(abs)
+            self.curve_y_exceeded_mean.setData(y_exceeded_mean)
         except TypeError as e:
             logging.debug('no data to update')
  

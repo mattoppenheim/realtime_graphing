@@ -40,9 +40,9 @@ class Parse_accelerometer_data():
     # see sensor data example in header
     REGEX_MILLIS = r'(.*\s*m:)(\s*)(?P<millis>.[0-9]+)'
     REGEX_COUNTER = r'(.*\s*c:)(\s*)(?P<counter>.[0-9]+)'
-    REGEX_x_acc = r'(.*\s*x:)(\s*)(?P<x_acc>.[0-9]+)'
-    REGEX_y_acc = r'(.*\s*y:)(\s*)(?P<y_acc>.[0-9]+)'
-    REGEX_z_acc = r'(.*\s*z:)(\s*)(?P<z_acc>.[0-9]+)'
+    REGEX_acc_x = r'(.*\s*x:)(\s*)(?P<acc_x>.[0-9]+)'
+    REGEX_acc_y = r'(.*\s*y:)(\s*)(?P<acc_y>.[0-9]+)'
+    REGEX_acc_z = r'(.*\s*z:)(\s*)(?P<acc_z>.[0-9]+)'
 
     def __init__(self, delta=100000):
         # delta is the time between scans
@@ -55,8 +55,6 @@ class Parse_accelerometer_data():
         # accelerometer data headers
         self.num_data_fields = len(ads.acc_data_headers) 
 
-    def make_acc_data_structure(data_string):
-        ''' Convert a data_string into a acc_data_structure. '''
 
     def check_counter(self, counter):
         ''' check the counter has incremented correctly '''
@@ -142,12 +140,12 @@ class Parse_accelerometer_data():
         except AttributeError as e:
             logging.error(f'counter regex error: {e}')
             counter = None
-        x_acc = re.match(self.REGEX_x_acc, single_scan).group('x_acc')
-        y_acc = re.match(self.REGEX_y_acc, single_scan).group('y_acc')
-        z_acc = re.match(self.REGEX_z_acc, single_scan).group('z_acc')
-        parsed_string = f'millis: {millis} counter: {counter} x_acc: {x_acc} y_acc: {y_acc} z_acc: {z_acc}'
+        acc_x = re.match(self.REGEX_acc_x, single_scan).group('acc_x')
+        acc_y = re.match(self.REGEX_acc_y, single_scan).group('acc_y')
+        acc_z = re.match(self.REGEX_acc_z, single_scan).group('acc_z')
+        # parsed_string = f'millis: {millis} counter: {counter} acc_x: {acc_x} acc_y: {acc_y} acc_z: {acc_z}'
         # logging.debug(f'parsed_string: {parsed_string}')
-        acc_data_structure = ads.acc_data_structure(millis, counter, x_acc, y_acc, z_acc)
+        acc_data_structure = ads.acc_data_structure(millis, counter, acc_x, acc_y, acc_z)
         # create an accelerometer data structure
         # publish scan_numpy_row using dispatcher
         return acc_data_structure

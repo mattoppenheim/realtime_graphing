@@ -24,8 +24,12 @@ import numpy as np
 # as this class does not run in the main thread, __ini__ definition of logging does not work
 logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 
+# length in samples of rolling window used to process dataframe
+ROLLING_WINDOW_LENGTH = 8 
+
 class IMU_calcs():
-    def __init__(self):
+    def __init__(self, rolling_window_length = ROLLING_WINDOW_LENGTH):
+        self.rolling_window_length = rolling_window_length
         pass
     
     @staticmethod
@@ -69,19 +73,19 @@ class IMU_calcs():
     def update_df(self, df):
         # update df containing x,y,z accelerometer data with pitch, roll, yaw, absolute acceleration
         # extract x,y,z from dataframe
-        x = df['x_acc'].tolist()[0]
-        y = df['y_acc'].tolist()[0]
-        z = df['z_acc'].tolist()[0]
-        pitch = self.pitch(x, y, z)
-        roll = self.roll(x, y, z)
-        yaw = self.yaw(x, y, z)
-        abs_acc = self.abs(x, y, z)
-        # update first row of pitch, roll, yaw, abs_acc dataframe columns
-        df.loc[0,'pitch'] = pitch
-        df.loc[0,'roll'] = roll
-        df.loc[0,'yaw'] = yaw
-        df.loc[0,'abs_acc'] = abs_acc
-        # logging.debug(f'pitch:{pitch:.2f} roll:{roll:.2f} yaw:{yaw:.2f} abs:{abs_acc:.2f}')
+        x = df['acc_x'].tolist()[0]
+        y = df['acc_y'].tolist()[0]
+        z = df['acc_z'].tolist()[0]
+        # pitch = self.pitch(x, y, z)
+        # roll = self.roll(x, y, z)
+        # yaw = self.yaw(x, y, z)
+        acc_abs = self.abs(x, y, z)
+        # update first row of pitch, roll, yaw, acc_abs dataframe columns
+        # df.loc[0,'pitch'] = pitch
+        # df.loc[0,'roll'] = roll
+        # df.loc[0,'yaw'] = yaw
+        df.loc[0,'acc_abs'] = acc_abs
+        logging.debug(f'acc_y:{y:.2f} abs:{acc_abs:.2f}')
         return df
 
 
