@@ -8,6 +8,10 @@ A diagram showing how the objects interact and communicate is shown below:
 
 ![project architecture](images/project_architecture.png)
 
+A screenshot of the data display is shown below:
+
+![screenshot of the data display](images/gui_screenshot.png)
+
 Display x,y,z accelerometer data from Lilygo T-Watch S3.
 
 Display filtered data created using the accelerometer data.
