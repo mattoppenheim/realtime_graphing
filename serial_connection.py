@@ -14,7 +14,6 @@ import fnmatch
 import logging
 import math
 import os
-import pandas as pd
 import parse_accelerometer_data
 from struct import *
 import struct
