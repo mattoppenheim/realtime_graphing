@@ -4,7 +4,7 @@ See README.md for full details of program architecture.
 Part of the handshake project: mattoppenheim.com/handshake
 The graphing thread has to run as the main thread - don't try to move
 this into another class and instantiate it from main.
-Connect with the T-Watch using a USB cable. 
+Connect with the T-Watch using a USB cable.
 The connection creates a serial port: /dev/ACM* (linux) or /dev/ttyUSB* (windows)
 Dependencies:
   PyDispatcher, pyserial, pyqtgraph, numpy, scikit, PySide6, pyopengl, pyzmq
@@ -38,7 +38,6 @@ import sys
 import threading
 import time
 import utilities
-# from zmq_pair_handler import ZmqPair
 
 # display will have limits +/- AMPLITUDE
 # AMPLITUDE = 2
@@ -46,15 +45,15 @@ import utilities
 UPDATE_MS = 100 # how fast to update graph in ms
 
 class Handshake():
-    
+
     LOG_UPDATE_INTERVAL = 1 # time in s inbetween writing data to textedit box
     MAX_ACC = 512 # max value to plot for accelerometer axis
-    MIN_ABS = 400 # min value for absolute acceleration 
-    MAX_ABS = 750 # min value for absolute acceleration 
+    MIN_ABS = 400 # min value for absolute acceleration
+    MAX_ABS = 750 # min value for absolute acceleration
     MAX_ROLL = 180 # roll varies from +180 to -180
     MAX_PITCH = 90 # pitch varies from +90 to -90
     MAX_YAW = 90 # yaw varies from +180 to -180
-    SENSOR_TIME_SAMPLES = 200 # how many samples to average over to find sensor update frequence 
+    SENSOR_TIME_SAMPLES = 200 # how many samples to average over to find sensor update frequence
     WIN_X = 300 # graph size in x
     WIN_Y = 500 # graph size in y
 
@@ -66,9 +65,9 @@ class Handshake():
         # ---- setup dataframe that stores sensor and filtered data
         self.dataframe = DataFrame()
         self.df = None # dataframe with data to plot is retrieved using dataframe_handler
-        # ----- Set up the serial connection and run in a thread 
+        # ----- Set up the serial connection and run in a thread
         # create the serial port connection, do not instantiate this from the main class
-        # or it blocks the program 
+        # or it blocks the program
         serial_connection_thread = threading.Thread(target=Serial_Connect)
         serial_connection_thread.start()
         self.last_graph_update = time.time() # used to measure the graph update frequency, independent of sensor data frequency
@@ -77,12 +76,6 @@ class Handshake():
         self.file_thread = threading.Thread(target=Files, args=(self.queue_out,)) # starts in a thread
         self.file_thread.start() # start the thread
         self.time_list = [0] * self.SENSOR_TIME_SAMPLES # empty list of time stamps to calculate graph update rate
-        # handles zmq communications with the gesture definition gui
-        # self.zmq = ZmqPair()
-        # ---- gesture recognition - removed for testing ----
-        # gesture_coords saves the coordinates where a gesture is matched in a frame of acc_abs data
-        # self.gesture = Shake_Recognition()
-        # IMU_calcs is used to calculate pitch, roll, yaw, abs
         self.imu = IMU_calcs()
         self.play = True # should the graph scroll, for play/pause button
         self.record = False # should the data be saved to file
@@ -146,7 +139,7 @@ class Handshake():
         self.curve_abs = self.p_abs.plot(pen=pen)
         self.curve_y_exceeded_mean = self.p_y_exceeded_mean.plot(pen=focus_pen)
 
-    
+
     def create_buttons(self):
         ''' Add control buttons to self.win. '''
         # create play/pause button to play or pause the sensor data display
@@ -166,11 +159,11 @@ class Handshake():
         self.save_button_update_appearance()
         self.win.nextRow()
         self.win.addItem(save_button_proxy)
-    
 
-    def create_textbox(self):    
+
+    def create_textbox(self):
         ''' Add a textbox to self.win. '''
-        # text box 
+        # text box
         self.win.nextRow()
         self.textedit = QtWidgets.QTextEdit()
         self.textedit.setReadOnly(True)
@@ -204,7 +197,7 @@ class Handshake():
                 pass
             self.last_textedit_update = now_time
 
-    
+
     def graph_update_rate(self):
         ''' Calculate graph refresh frequency. '''
         # This is independent of the sensor data.
@@ -222,11 +215,11 @@ class Handshake():
     def log_df(self):
         ''' Log df values for row 0 '''
         acc_x = self.df.loc[0,'acc_x']
-        acc_y = self.df.loc[0,'acc_y'] 
+        acc_y = self.df.loc[0,'acc_y']
         acc_z = self.df.loc[0,'acc_z']
         ''' pitch, roll, yaw not in use
         pitch = self.df.loc[0,'pitch']
-        roll = self.df.loc[0,'roll'] 
+        roll = self.df.loc[0,'roll']
         yaw = self.df.loc[0,'yaw']
         '''
         acc_abs = self.df.loc[0,'acc_abs']
@@ -237,14 +230,14 @@ class Handshake():
         # logging.debug(f'acc_x:{acc_x:7.2f} acc_y:{acc_y:7.2f} acc_z:{acc_z:7.2f} abs:{acc_abs:7.2f}, millis:{millis:12.0f}, counter:{counter:8.0f}')
         logging.debug(f'acc_x:{acc_x:7.2f} acc_y:{acc_y:7.2f} acc_z:{acc_z:7.2f} abs:{acc_abs:7.2f}, y_exceeded_main:{y_exceeded_mean:7.2f}')
 
-    
+
     def log_textedit(self, text):
         ''' Write text to self.textedit. '''
         text = ('{} {}\n'.format(utilities.now_time_simple(), text))
         self.textedit.moveCursor(QtGui.QTextCursor.End)
         self.textedit.insertPlainText(text)
-    
-    
+
+
     def pause_button_clicked(self):
         ''' Toggle play/pause button and self.play. '''
         self.play = not(self.play)
@@ -254,7 +247,7 @@ class Handshake():
 
     def pause_button_update_appearance(self):
         ''' Set the pause button appearance. '''
-        if not self.play:   
+        if not self.play:
             self.pause_button.setText('paused')
             self.pause_button.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         else:
@@ -270,7 +263,7 @@ class Handshake():
         logging.debug(f'record button: {self.record}')
         self.log_textedit(f'recording to file: {self.record}')
 
-    
+
     def save_button_update_appearance(self):
         ''' Set the save button appearance. '''
         if not self.record:
@@ -279,7 +272,7 @@ class Handshake():
         else:
             self.save_button.setText('recording data to file')
             self.save_button.setStyleSheet('QPushButton {background-color: #A3C1DA; color: blue;}')
-    
+
 
     def sensor_update_rate(self):
         ''' Calculate the sensor update frequency. '''
@@ -336,8 +329,8 @@ class Handshake():
             self.curve_y_exceeded_mean.setData(y_exceeded_mean)
         except TypeError as e:
             logging.debug('no data to update')
- 
-        
+
+
 
 # **** not in use
     def write_array_file(self, new_np_array, old_np_array):
@@ -348,10 +341,10 @@ class Handshake():
 
 if __name__ == '__main__' :
     handshake = Handshake()
-    
+
     timer = pg.QtCore.QTimer()
     timer.timeout.connect(handshake.timer_timout)
-    
+
     # timer units are milliseconds. timer.start(0) to go as fast as practical.
     timer.start(UPDATE_MS) # timer timeout in ms
     pg.exec()

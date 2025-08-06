@@ -1,6 +1,11 @@
 '''
 Created on 31 Dec 2015
 accelerometer data structure
+m: number of milliseconds since start
+c: incrementing counter
+acc_x: accelerometer x value
+acc_y: accelerometer y value
+acc_z: accelerometer z value
 @author: matthew
 '''
 
